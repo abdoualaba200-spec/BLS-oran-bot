@@ -1,38 +1,39 @@
 
+
 import os
 import requests
-import time
+from flask import Flask, request
 
-TOKEN = os.environ.get("BOT_TOKEN")
+TOKEN = os.environ["BOT_TOKEN"]
 URL = f"https://api.telegram.org/bot{TOKEN}/"
 
-offset = 0
+app = Flask(__name__)
 
-print("BLS Bot is running!")
+def send_message(chat_id, text):
+    requests.post(
+        URL + "sendMessage",
+        json={"chat_id": chat_id, "text": text},
+        timeout=15
+    )
 
-while True:
-    try:
-        response = requests.get(
-            URL + "getUpdates",
-            params={"offset": offset, "timeout": 30},
-            timeout=35
-        ).json()
+@app.route("/")
+def home():
+    return "BLS Oran Bot is running!"
 
-        for update in response.get("result", []):
-            offset = update["update_id"] + 1
-            message = update.get("message", {})
-            chat_id = message.get("chat", {}).get("id")
-            text = message.get("text", "")
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", {})
+    chat_id = message.get("chat", {}).get("id")
+    text = message.get("text", "")
 
-            if chat_id and text == "/start":
-                requests.post(
-                    URL + "sendMessage",
-                    json={
-                        "chat_id": chat_id,
-                        "text": "مرحبا! 🤖 بوت BLS Oran راه يخدم بنجاح!"
-                    }
-                )
+    if chat_id and text == "/start":
+        send_message(
+            chat_id,
+            "مرحبا بك! 🤖\nبوت BLS Oran راه يخدم بنجاح!\nسنضيف مراقبة المواعيد لاحقاً."
+        )
 
-    except Exception as error:
-        print(error)
-        time.sleep(5)
+    return {"ok": True}
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
